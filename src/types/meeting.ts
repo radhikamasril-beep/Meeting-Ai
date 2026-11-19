@@ -4,6 +4,7 @@ export type MeetingStatus = "pending" | "recording" | "processing" | "completed"
 export interface Meeting {
   id: string;
   title: string;
+  category?: string;
   platform: MeetingPlatform;
   status: MeetingStatus;
   audio_path: string | null;

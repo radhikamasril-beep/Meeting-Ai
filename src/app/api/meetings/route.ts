@@ -13,10 +13,11 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { title, platform } = body;
+    const { title, platform, category } = body;
     const newMeeting = MeetingRepository.create({
       id: `mtg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       title: title || "Rapat Tanpa Judul",
+      category: category || "Umum",
       platform: platform || "upload",
       status: "pending",
       audio_path: null,

@@ -19,6 +19,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS meetings (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
+    category TEXT DEFAULT 'Umum',
     platform TEXT NOT NULL,
     status TEXT NOT NULL,
     audio_path TEXT,
@@ -54,13 +55,14 @@ export const MeetingRepository = {
   // Create new meeting
   create(meeting: Omit<Meeting, "created_at">): Meeting {
     const stmt = db.prepare(`
-      INSERT INTO meetings (id, title, platform, status, audio_path, duration_sec)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO meetings (id, title, category, platform, status, audio_path, duration_sec)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
       RETURNING *
     `);
     const row = stmt.get(
       meeting.id,
       meeting.title,
+      meeting.category || "Umum",
       meeting.platform,
       meeting.status,
       meeting.audio_path,

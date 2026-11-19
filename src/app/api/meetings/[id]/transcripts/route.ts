@@ -30,7 +30,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       );
     }
 
-    return NextResponse.json({ success: true, message: "Transkrip berhasil diperbarui" });
+    // Auto re-sync edited transcript to knowledge base
+    try {
+      const { KnowledgeSyncService } = await import("@/services/knowledge-sync");
+      KnowledgeSyncService.syncMeeting(params.id);
+    } catch (syncErr) {
+      console.warn("Sync error after edit:", syncErr);
+    }
+
+    return NextResponse.json({ success: true, message: "Transkrip berhasil diperbarui dan disinkronkan ke knowledge base" });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }

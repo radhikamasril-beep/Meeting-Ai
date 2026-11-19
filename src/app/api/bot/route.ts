@@ -4,7 +4,7 @@ import { MeetingRepository } from "@/lib/db";
 
 export async function POST(req: Request) {
   try {
-    const { action, meetingUrl, title, botName, meetingId } = await req.json();
+    const { action, meetingUrl, title, category, botName, meetingId } = await req.json();
 
     if (action === "start") {
       if (!meetingUrl) {
@@ -15,6 +15,7 @@ export async function POST(req: Request) {
       const newMeeting = MeetingRepository.create({
         id,
         title: title || "Rapat Google Meet",
+        category: category || "Umum",
         platform: "gmeet",
         status: "recording",
         audio_path: null,

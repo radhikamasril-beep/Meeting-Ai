@@ -8,6 +8,7 @@ export async function POST(req: Request) {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const title = (formData.get("title") as string) || "Rekaman Unggahan";
+    const category = (formData.get("category") as string) || "Umum";
 
     if (!file) {
       return NextResponse.json({ success: false, error: "File audio tidak ditemukan" }, { status: 400 });
@@ -21,6 +22,7 @@ export async function POST(req: Request) {
     const newMeeting = MeetingRepository.create({
       id: meetingId,
       title,
+      category,
       platform: "upload",
       status: "pending",
       audio_path: savedAudio.filePath,

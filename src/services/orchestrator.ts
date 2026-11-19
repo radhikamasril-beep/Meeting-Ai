@@ -34,9 +34,9 @@ export const MeetingOrchestrator = {
       // 6. Finalize meeting status
       MeetingRepository.updateStatus(meetingId, "completed", estimatedDurationSec, audioFilePath);
 
-      // 7. Auto-sync to Antigravity knowledge base
+      // 7. Auto-sync to Antigravity knowledge base (Isolated category folder)
       try {
-        KnowledgeSyncService.syncAllMeetingsToKnowledge();
+        KnowledgeSyncService.syncMeeting(meetingId);
       } catch (syncErr) {
         console.warn("[Orchestrator] Warning syncing to knowledge base:", syncErr);
       }

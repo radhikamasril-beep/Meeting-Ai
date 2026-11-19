@@ -3,7 +3,11 @@ import { z } from "zod";
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-  GEMINI_API_KEY: z.string().min(1, "GEMINI_API_KEY is required for Speech-to-Text & Summary"),
+  AI_PROVIDER: z.enum(["9router", "gemini"]).default("9router"),
+  ROUTER_BASE_URL: z.string().default("http://localhost:20128/v1"),
+  ROUTER_API_KEY: z.string().default(""),
+  ROUTER_MODEL: z.string().default("ag/gemini-3.8-flash-high"),
+  GEMINI_API_KEY: z.string().default(""),
   GEMINI_MODEL: z.string().default("gemini-3.8-flash"),
   DATABASE_URL: z.string().default("file:./data/db/meetingai.sqlite"),
   STORAGE_RECORDINGS_PATH: z.string().default("./data/recordings"),
@@ -20,6 +24,10 @@ export function getValidatedConfig(): EnvConfig {
     return {
       PORT: 3000,
       NODE_ENV: "development",
+      AI_PROVIDER: (process.env.AI_PROVIDER as any) || "9router",
+      ROUTER_BASE_URL: process.env.ROUTER_BASE_URL || "http://localhost:20128/v1",
+      ROUTER_API_KEY: process.env.ROUTER_API_KEY || "",
+      ROUTER_MODEL: process.env.ROUTER_MODEL || "ag/gemini-3.8-flash-high",
       GEMINI_API_KEY: process.env.GEMINI_API_KEY || "",
       GEMINI_MODEL: "gemini-3.8-flash",
       DATABASE_URL: "file:./data/db/meetingai.sqlite",

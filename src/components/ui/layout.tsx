@@ -69,8 +69,8 @@ export function Header() {
       </div>
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 rounded-full border border-gray-800 bg-gray-900 px-3 py-1 text-xs text-gray-300">
-          <span className="text-gray-500">Model:</span>
-          <span className="font-semibold text-indigo-400">Gemini 3.8 Flash</span>
+          <span className="text-gray-500">Engine:</span>
+          <span className="font-semibold text-emerald-400">9Router (ag/gemini-3.8-flash-high)</span>
         </div>
       </div>
     </header>

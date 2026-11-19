@@ -1,5 +1,6 @@
 import { AudioService } from "./audio-service";
 import { AIService } from "./ai-service";
+import { KnowledgeSyncService } from "./knowledge-sync";
 import { MeetingRepository } from "../lib/db";
 import { MeetingWithDetails } from "../types/meeting";
 
@@ -32,6 +33,13 @@ export const MeetingOrchestrator = {
 
       // 6. Finalize meeting status
       MeetingRepository.updateStatus(meetingId, "completed", estimatedDurationSec, audioFilePath);
+
+      // 7. Auto-sync to Antigravity knowledge base
+      try {
+        KnowledgeSyncService.syncAllMeetingsToKnowledge();
+      } catch (syncErr) {
+        console.warn("[Orchestrator] Warning syncing to knowledge base:", syncErr);
+      }
 
       const completeMeeting = MeetingRepository.getById(meetingId);
       if (!completeMeeting) {

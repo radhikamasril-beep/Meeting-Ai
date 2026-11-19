@@ -9,9 +9,15 @@ if (!fs.existsSync(DB_DIR)) {
 }
 
 const DB_PATH = path.join(DB_DIR, "meetingai.sqlite");
-const db = new DatabaseSync(DB_PATH);
 
-// Initialize Tables (Langkah 10-13)
+// Singleton Database instance to prevent lock contention on hot reload
+const globalForDb = globalThis as unknown as { db?: DatabaseSync };
+export const db = globalForDb.db ?? new DatabaseSync(DB_PATH);
+if (process.env.NODE_ENV !== "production") {
+  globalForDb.db = db;
+}
+
+// Initialize Tables
 db.exec(`
   PRAGMA journal_mode = WAL;
   PRAGMA foreign_keys = ON;
@@ -146,15 +152,24 @@ export const MeetingRepository = {
     };
   },
 
-  // Save batch transcripts
+  // Save batch transcripts in a single atomic transaction
   saveTranscripts(meetingId: string, segments: Omit<TranscriptSegment, "meeting_id">[]) {
+    if (segments.length === 0) return;
+
     const insertStmt = db.prepare(`
       INSERT INTO transcript_segments (id, meeting_id, speaker_name, start_ms, end_ms, text)
       VALUES (?, ?, ?, ?, ?, ?)
     `);
 
-    for (const seg of segments) {
-      insertStmt.run(seg.id, meetingId, seg.speaker_name, seg.start_ms, seg.end_ms, seg.text);
+    db.exec("BEGIN TRANSACTION;");
+    try {
+      for (const seg of segments) {
+        insertStmt.run(seg.id, meetingId, seg.speaker_name, seg.start_ms, seg.end_ms, seg.text);
+      }
+      db.exec("COMMIT;");
+    } catch (err) {
+      db.exec("ROLLBACK;");
+      throw err;
     }
   },
 
@@ -178,8 +193,16 @@ export const MeetingRepository = {
     );
   },
 
-  // Delete meeting
+  // Delete meeting and clean up physical file
   delete(id: string) {
+    const meeting = this.getById(id);
+    if (meeting && meeting.audio_path && fs.existsSync(meeting.audio_path)) {
+      try {
+        fs.unlinkSync(meeting.audio_path);
+      } catch (err) {
+        console.warn(`[DB] Failed to unlink audio file ${meeting.audio_path}:`, err);
+      }
+    }
     db.prepare(`DELETE FROM meetings WHERE id = ?`).run(id);
   },
 };

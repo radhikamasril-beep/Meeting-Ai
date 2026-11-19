@@ -8,6 +8,8 @@ export interface AudioMetadata {
   sizeBytes: number;
 }
 
+const ALLOWED_AUDIO_EXT = new Set([".mp3", ".wav", ".m4a", ".ogg", ".webm", ".aac"]);
+
 export const AudioService = {
   // Validate and get MIME type from extension
   getMimeType(filePath: string): string {
@@ -41,14 +43,18 @@ export const AudioService = {
     };
   },
 
-  // Save uploaded buffer to data/recordings directory
+  // Save uploaded buffer to data/recordings directory with strict whitelist
   saveAudioBuffer(buffer: Buffer, originalFilename: string): AudioMetadata {
+    const ext = path.extname(originalFilename).toLowerCase();
+    if (!ALLOWED_AUDIO_EXT.has(ext)) {
+      throw new Error(`Format file audio '${ext}' tidak didukung. Harap unggah MP3, WAV, M4A, OGG, atau WebM.`);
+    }
+
     const recordingsDir = path.resolve(process.cwd(), "data", "recordings");
     if (!fs.existsSync(recordingsDir)) {
       fs.mkdirSync(recordingsDir, { recursive: true });
     }
 
-    const ext = path.extname(originalFilename) || ".mp3";
     const uniqueName = `rec_${Date.now()}_${Math.random().toString(36).substring(2, 7)}${ext}`;
     const destinationPath = path.join(recordingsDir, uniqueName);
 

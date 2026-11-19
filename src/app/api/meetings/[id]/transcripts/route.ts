@@ -1,33 +1,50 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
+import { patchTranscriptSchema } from "@/types/meeting";
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
-    const { transcriptId, speaker_name, text } = await req.json();
-
-    if (!transcriptId) {
-      return NextResponse.json({ success: false, error: "transcriptId diperlukan" }, { status: 400 });
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ success: false, error: "Format JSON tidak valid" }, { status: 400 });
     }
 
+    const parseResult = patchTranscriptSchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { success: false, error: parseResult.error.errors[0]?.message || "Validasi gagal" },
+        { status: 400 }
+      );
+    }
+
+    const { transcriptId, speaker_name, text } = parseResult.data;
+
+    let result;
     if (speaker_name !== undefined && text !== undefined) {
-      db.prepare(`UPDATE transcript_segments SET speaker_name = ?, text = ? WHERE id = ? AND meeting_id = ?`).run(
+      result = db.prepare(`UPDATE transcript_segments SET speaker_name = ?, text = ? WHERE id = ? AND meeting_id = ?`).run(
         speaker_name,
         text,
         transcriptId,
         params.id
       );
     } else if (speaker_name !== undefined) {
-      db.prepare(`UPDATE transcript_segments SET speaker_name = ? WHERE id = ? AND meeting_id = ?`).run(
+      result = db.prepare(`UPDATE transcript_segments SET speaker_name = ? WHERE id = ? AND meeting_id = ?`).run(
         speaker_name,
         transcriptId,
         params.id
       );
     } else if (text !== undefined) {
-      db.prepare(`UPDATE transcript_segments SET text = ? WHERE id = ? AND meeting_id = ?`).run(
+      result = db.prepare(`UPDATE transcript_segments SET text = ? WHERE id = ? AND meeting_id = ?`).run(
         text,
         transcriptId,
         params.id
       );
+    }
+
+    if (!result || result.changes === 0) {
+      return NextResponse.json({ success: false, error: "Segmen transkrip tidak ditemukan" }, { status: 404 });
     }
 
     // Auto re-sync edited transcript to knowledge base

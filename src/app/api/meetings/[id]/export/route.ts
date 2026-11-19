@@ -12,8 +12,12 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ success: false, error: "Meeting not found" }, { status: 404 });
     }
 
+    // Sanitize filename to prevent HTTP Header Injection / CRLF
+    const safeFileId = meeting.id.replace(/[^a-zA-Z0-9_-]/g, "");
+
     if (format === "markdown") {
       let md = `# Notulensi Rapat: ${meeting.title}\n\n`;
+      md += `- **Kategori/Organisasi**: ${meeting.category || "Umum"}\n`;
       md += `- **Platform**: ${meeting.platform.toUpperCase()}\n`;
       md += `- **Waktu**: ${new Date(meeting.created_at).toLocaleString("id-ID")}\n`;
       md += `- **Durasi**: ${formatDuration(meeting.duration_sec)}\n\n`;
@@ -44,13 +48,14 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return new Response(md, {
         headers: {
           "Content-Type": "text/markdown; charset=utf-8",
-          "Content-Disposition": `attachment; filename="notula_${meeting.id}.md"`,
+          "Content-Disposition": `attachment; filename="notula_${safeFileId}.md"`,
         },
       });
     }
 
     if (format === "txt") {
       let txt = `NOTULENSI RAPAT: ${meeting.title.toUpperCase()}\n`;
+      txt += `Kategori: ${meeting.category || "Umum"}\n`;
       txt += `Tanggal: ${new Date(meeting.created_at).toLocaleString("id-ID")}\n`;
       txt += `Durasi: ${formatDuration(meeting.duration_sec)}\n`;
       txt += `--------------------------------------------------------\n\n`;
@@ -67,7 +72,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return new Response(txt, {
         headers: {
           "Content-Type": "text/plain; charset=utf-8",
-          "Content-Disposition": `attachment; filename="notula_${meeting.id}.txt"`,
+          "Content-Disposition": `attachment; filename="notula_${safeFileId}.txt"`,
         },
       });
     }

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Search, Calendar, Clock, Video, FileAudio, ExternalLink, Bot, Sparkles } from "lucide-react";
+import { Plus, Search, Calendar, Clock, Video, FileAudio, ExternalLink, Bot, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge, Card } from "@/components/ui/card";
 import { formatDuration } from "@/lib/utils";
@@ -14,29 +14,56 @@ export default function DashboardPage() {
   const [isBotModalOpen, setIsBotModalOpen] = useState(false);
   const [gmeetUrl, setGmeetUrl] = useState("");
   const [meetingTitle, setMeetingTitle] = useState("");
+  const [category, setCategory] = useState("Umum");
   const [isStartingBot, setIsStartingBot] = useState(false);
+  const [botError, setBotError] = useState<string | null>(null);
 
-  const fetchMeetings = async () => {
+  const fetchMeetings = async (signal?: AbortSignal) => {
     try {
-      const res = await fetch("/api/meetings");
+      const res = await fetch("/api/meetings", { signal });
+      if (!res.ok) return;
       const data = await res.json();
       if (data.success) {
         setMeetings(data.meetings);
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        console.error("Fetch meetings error:", err);
+      }
     }
   };
 
   useEffect(() => {
-    fetchMeetings();
-    const interval = setInterval(fetchMeetings, 4000);
-    return () => clearInterval(interval);
+    const controller = new AbortController();
+    fetchMeetings(controller.signal);
+    const interval = setInterval(() => fetchMeetings(controller.signal), 4000);
+    return () => {
+      controller.abort();
+      clearInterval(interval);
+    };
   }, []);
+
+  // Handle ESC key to close modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isBotModalOpen) {
+        setIsBotModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isBotModalOpen]);
 
   const handleStartBot = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!gmeetUrl) return;
+    setBotError(null);
+
+    const trimmedUrl = gmeetUrl.trim();
+    if (!trimmedUrl.startsWith("https://meet.google.com/")) {
+      setBotError("URL harus berupa link valid https://meet.google.com/xxx-xxxx-xxx");
+      return;
+    }
+
     setIsStartingBot(true);
     try {
       const res = await fetch("/api/bot", {
@@ -44,8 +71,9 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "start",
-          meetingUrl: gmeetUrl,
-          title: meetingTitle || "Rapat Google Meet",
+          meetingUrl: trimmedUrl,
+          title: meetingTitle.trim() || "Rapat Google Meet",
+          category: category.trim() || "Umum",
         }),
       });
       const data = await res.json();
@@ -53,17 +81,21 @@ export default function DashboardPage() {
         setIsBotModalOpen(false);
         setGmeetUrl("");
         setMeetingTitle("");
+        setCategory("Umum");
         fetchMeetings();
+      } else {
+        setBotError(data.error || "Gagal meluncurkan bot.");
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      setBotError(err.message || "Gagal menghubungkan ke server.");
     } finally {
       setIsStartingBot(false);
     }
   };
 
   const filteredMeetings = meetings.filter((m) =>
-    m.title.toLowerCase().includes(search.toLowerCase())
+    m.title.toLowerCase().includes(search.toLowerCase()) ||
+    (m.category && m.category.toLowerCase().includes(search.toLowerCase()))
   );
 
   return (
@@ -98,7 +130,7 @@ export default function DashboardPage() {
         <Search className="absolute left-3.5 top-3 h-4 w-4 text-gray-500" />
         <input
           type="text"
-          placeholder="Cari rapat berdasarkan judul..."
+          placeholder="Cari rapat berdasarkan judul atau organisasi..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full rounded-xl border border-gray-800 bg-gray-900/60 pl-10 pr-4 py-2.5 text-sm text-gray-200 placeholder-gray-500 backdrop-blur focus:border-indigo-500 focus:outline-none"
@@ -112,25 +144,30 @@ export default function DashboardPage() {
             <Card className="hover:border-indigo-500/50 hover:bg-gray-900/80 cursor-pointer h-full flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between gap-2 mb-3">
-                  <Badge
-                    variant={
-                      m.status === "completed"
-                        ? "success"
+                  <div className="flex items-center gap-1.5">
+                    <Badge
+                      variant={
+                        m.status === "completed"
+                          ? "success"
+                          : m.status === "recording"
+                          ? "danger"
+                          : m.status === "processing"
+                          ? "warning"
+                          : "default"
+                      }
+                    >
+                      {m.status === "completed"
+                        ? "Selesai"
                         : m.status === "recording"
-                        ? "danger"
+                        ? "🔴 Merekam"
                         : m.status === "processing"
-                        ? "warning"
-                        : "default"
-                    }
-                  >
-                    {m.status === "completed"
-                      ? "Selesai"
-                      : m.status === "recording"
-                      ? "🔴 Merekam"
-                      : m.status === "processing"
-                      ? "Memproses AI..."
-                      : "Menunggu"}
-                  </Badge>
+                        ? "Memproses AI..."
+                        : "Menunggu"}
+                    </Badge>
+                    <span className="text-[11px] font-semibold bg-gray-800/80 text-gray-300 px-2 py-0.5 rounded border border-gray-700">
+                      {m.category || "Umum"}
+                    </span>
+                  </div>
 
                   <span className="text-xs text-gray-500 flex items-center gap-1 font-mono">
                     <Clock className="h-3.5 w-3.5" />
@@ -181,7 +218,11 @@ export default function DashboardPage() {
 
       {/* Quick Join Modal */}
       {isBotModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+        >
           <div className="w-full max-w-md rounded-2xl border border-gray-800 bg-gray-950 p-6 shadow-2xl">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <Bot className="h-5 w-5 text-indigo-400" />
@@ -191,12 +232,22 @@ export default function DashboardPage() {
               Bot otonom akan masuk ke ruangan rapat, mematikan mic/cam, dan merekam audio untuk transkrip AI.
             </p>
 
+            {botError && (
+              <div className="mt-4 p-3 rounded-lg bg-red-950/60 border border-red-800/60 text-xs text-red-300 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{botError}</span>
+              </div>
+            )}
+
             <form onSubmit={handleStartBot} className="mt-5 space-y-4">
               <div>
-                <label className="text-xs font-medium text-gray-300 block mb-1.5">Judul Rapat</label>
+                <label htmlFor="modal-title" className="text-xs font-medium text-gray-300 block mb-1.5">
+                  Judul Rapat
+                </label>
                 <input
+                  id="modal-title"
                   type="text"
-                  placeholder="Contoh: Sprint Planning Q1"
+                  placeholder="Contoh: Evaluasi Proyek Q1"
                   value={meetingTitle}
                   onChange={(e) => setMeetingTitle(e.target.value)}
                   className="w-full rounded-lg border border-gray-800 bg-gray-900 px-3.5 py-2 text-sm text-gray-200 focus:border-indigo-500 focus:outline-none"
@@ -204,8 +255,25 @@ export default function DashboardPage() {
               </div>
 
               <div>
-                <label className="text-xs font-medium text-gray-300 block mb-1.5">Link Google Meet</label>
+                <label htmlFor="modal-cat" className="text-xs font-medium text-gray-300 block mb-1.5">
+                  Organisasi / Kategori
+                </label>
                 <input
+                  id="modal-cat"
+                  type="text"
+                  placeholder="Contoh: FOSI, Kabinet, UKM, atau Umum"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full rounded-lg border border-gray-800 bg-gray-900 px-3.5 py-2 text-sm text-gray-200 focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="modal-url" className="text-xs font-medium text-gray-300 block mb-1.5">
+                  Link Google Meet
+                </label>
+                <input
+                  id="modal-url"
                   type="url"
                   required
                   placeholder="https://meet.google.com/xxx-xxxx-xxx"

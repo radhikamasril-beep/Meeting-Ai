@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Clock,
@@ -15,7 +15,7 @@ import {
   Check,
   Edit2,
   Save,
-  Share2,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge, Card } from "@/components/ui/card";
@@ -28,7 +28,7 @@ export default function MeetingDetailPage() {
   const router = useRouter();
   const [meeting, setMeeting] = useState<MeetingWithDetails | null>(null);
   const [activeTab, setActiveTab] = useState<"summary" | "transcript" | "actions">("summary");
-  const [currentAudioTime, setCurrentAudioTime] = useState(0);
+  const [seekTarget, setSeekTarget] = useState<number | null>(null);
   const [isStoppingBot, setIsStoppingBot] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -37,28 +37,44 @@ export default function MeetingDetailPage() {
   const [editSpeaker, setEditSpeaker] = useState("");
   const [editText, setEditText] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
-  const fetchMeeting = async () => {
+  // Checked state for action items (client-side interactive)
+  const [checkedItems, setCheckedItems] = useState<{ [key: number]: boolean }>({});
+
+  const statusRef = useRef<string | null>(null);
+  statusRef.current = meeting?.status || null;
+
+  const fetchMeeting = async (signal?: AbortSignal) => {
     try {
-      const res = await fetch(`/api/meetings/${params.id}`);
+      const res = await fetch(`/api/meetings/${params.id}`, { signal });
+      if (!res.ok) return;
       const data = await res.json();
       if (data.success) {
         setMeeting(data.meeting);
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        console.error("Fetch meeting error:", err);
+      }
     }
   };
 
   useEffect(() => {
-    fetchMeeting();
+    const controller = new AbortController();
+    fetchMeeting(controller.signal);
+
     const interval = setInterval(() => {
-      if (meeting?.status === "processing" || meeting?.status === "recording") {
-        fetchMeeting();
+      if (statusRef.current === "processing" || statusRef.current === "recording") {
+        fetchMeeting(controller.signal);
       }
     }, 3000);
-    return () => clearInterval(interval);
-  }, [params.id, meeting?.status]);
+
+    return () => {
+      controller.abort();
+      clearInterval(interval);
+    };
+  }, [params.id]);
 
   const handleStopBot = async () => {
     if (!meeting) return;
@@ -79,12 +95,13 @@ export default function MeetingDetailPage() {
 
   const handleCopySummary = () => {
     if (!meeting || !meeting.summary) return;
-    let text = `*Notulensi Rapat: ${meeting.title}*\n\n`;
-    text += `*Ringkasan:*\n${meeting.summary.overview}\n\n`;
+    let text = `*Notulensi: ${meeting.title}*\n`;
+    text += `*Kategori:* ${meeting.category || "Umum"}\n\n`;
+    text += `*Ringkasan Eksekutif:*\n${meeting.summary.overview}\n\n`;
     if (meeting.summary.action_items?.length) {
       text += `*Action Items:*\n`;
       meeting.summary.action_items.forEach((item, i) => {
-        text += `${i + 1}. ${item.task} (PIC: ${item.assignee || "-"} | Deadline: ${item.deadline || "-"})\n`;
+        text += `${i + 1}. ${item.task} (PIC: ${item.assignee || "-"} | Target: ${item.deadline || "-"})\n`;
       });
     }
     navigator.clipboard.writeText(text);
@@ -96,26 +113,31 @@ export default function MeetingDetailPage() {
     setEditingId(t.id);
     setEditSpeaker(t.speaker_name);
     setEditText(t.text);
+    setEditError(null);
   };
 
   const saveEdit = async (transcriptId: string) => {
     setIsSavingEdit(true);
+    setEditError(null);
     try {
       const res = await fetch(`/api/meetings/${params.id}/transcripts`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           transcriptId,
-          speaker_name: editSpeaker,
-          text: editText,
+          speaker_name: editSpeaker.trim(),
+          text: editText.trim(),
         }),
       });
-      if (res.ok) {
+      const data = await res.json();
+      if (res.ok && data.success) {
         setEditingId(null);
         fetchMeeting();
+      } else {
+        setEditError(data.error || "Gagal menyimpan transkrip");
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      setEditError(err.message || "Gagal menghubungi server");
     } finally {
       setIsSavingEdit(false);
     }
@@ -139,6 +161,7 @@ export default function MeetingDetailPage() {
             size="icon"
             onClick={() => router.push("/")}
             className="rounded-full"
+            aria-label="Kembali ke Dashboard"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -156,6 +179,9 @@ export default function MeetingDetailPage() {
               >
                 {meeting.status.toUpperCase()}
               </Badge>
+              <span className="text-[11px] font-semibold bg-gray-800/80 text-gray-300 px-2 py-0.5 rounded border border-gray-700">
+                {meeting.category || "Umum"}
+              </span>
             </div>
             <p className="text-xs text-gray-400 mt-1 flex items-center gap-3">
               <span className="flex items-center gap-1">
@@ -217,12 +243,11 @@ export default function MeetingDetailPage() {
         </div>
       </div>
 
-      {/* Audio Player */}
+      {/* Audio Player with HTTP 206 Seeking Support */}
       {meeting.audio_path && (
         <AudioPlayer
           src={`/api/meetings/${meeting.id}/audio`}
-          currentTime={currentAudioTime}
-          onTimeUpdate={(t) => setCurrentAudioTime(t)}
+          seekTarget={seekTarget}
         />
       )}
 
@@ -305,6 +330,12 @@ export default function MeetingDetailPage() {
               {editingId === t.id ? (
                 /* In-place Edit Form */
                 <div className="space-y-3">
+                  {editError && (
+                    <div className="p-2 rounded bg-red-950/60 border border-red-800/60 text-xs text-red-300 flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      <span>{editError}</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-3">
                     <input
                       type="text"
@@ -345,7 +376,7 @@ export default function MeetingDetailPage() {
               ) : (
                 /* Display Mode */
                 <div
-                  onClick={() => setCurrentAudioTime(t.start_ms / 1000)}
+                  onClick={() => setSeekTarget(t.start_ms / 1000)}
                   className="cursor-pointer"
                 >
                   <div className="flex items-center justify-between mb-1.5">
@@ -361,6 +392,7 @@ export default function MeetingDetailPage() {
                         }}
                         className="opacity-0 group-hover:opacity-100 p-1 hover:text-indigo-400 text-gray-500 transition-opacity"
                         title="Koreksi transkrip / pembicara"
+                        aria-label="Koreksi segmen ini"
                       >
                         <Edit2 className="h-3.5 w-3.5" />
                       </button>
@@ -390,10 +422,16 @@ export default function MeetingDetailPage() {
               >
                 <input
                   type="checkbox"
+                  id={`action-${idx}`}
+                  checked={Boolean(checkedItems[idx])}
+                  onChange={(e) => setCheckedItems({ ...checkedItems, [idx]: e.target.checked })}
+                  aria-label={`Tandai selesai tugas: ${item.task}`}
                   className="mt-1 h-4 w-4 rounded border-gray-700 bg-gray-800 text-indigo-500 focus:ring-0 cursor-pointer"
                 />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-200">{item.task}</p>
+                <label htmlFor={`action-${idx}`} className="flex-1 cursor-pointer">
+                  <p className={`text-sm font-medium ${checkedItems[idx] ? "line-through text-gray-500" : "text-gray-200"}`}>
+                    {item.task}
+                  </p>
                   <div className="mt-1.5 flex items-center gap-3 text-xs text-gray-400">
                     <span>
                       PIC: <strong className="text-indigo-300">{item.assignee || "Belum ditentukan"}</strong>
@@ -403,7 +441,7 @@ export default function MeetingDetailPage() {
                       Target: <strong className="text-amber-300">{item.deadline || "Segera"}</strong>
                     </span>
                   </div>
-                </div>
+                </label>
               </div>
             ))}
 

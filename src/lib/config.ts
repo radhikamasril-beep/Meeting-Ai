@@ -4,7 +4,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   GEMINI_API_KEY: z.string().min(1, "GEMINI_API_KEY is required for Speech-to-Text & Summary"),
-  GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
+  GEMINI_MODEL: z.string().default("gemini-3.8-flash"),
   DATABASE_URL: z.string().default("file:./data/db/meetingai.sqlite"),
   STORAGE_RECORDINGS_PATH: z.string().default("./data/recordings"),
   BOT_DISPLAY_NAME: z.string().default("AI Meeting Note Taker"),

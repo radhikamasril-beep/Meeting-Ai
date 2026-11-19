@@ -117,7 +117,26 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {aiProvider === "9router" && (
+          {aiProvider === "gemini" && (
+            <div className="space-y-4 pt-2">
+              <div>
+                <label className="text-xs font-semibold text-gray-300 block mb-1.5 flex items-center gap-1.5">
+                  <Key className="h-3.5 w-3.5 text-gray-400" />
+                  Google Gemini API Key (Google AI Studio)
+                </label>
+                <input
+                  type="password"
+                  placeholder="AIzaSy..."
+                  value={routerApiKey}
+                  onChange={(e) => setRouterApiKey(e.target.value)}
+                  className="w-full rounded-lg border border-gray-800 bg-gray-900 px-3.5 py-2 text-sm text-gray-200 focus:border-indigo-500 focus:outline-none font-mono"
+                />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Dapatkan kunci gratis di <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-indigo-400 underline">aistudio.google.com</a>
+                </p>
+              </div>
+            </div>
+          )}
             <div className="space-y-4 pt-2">
               <div>
                 <label className="text-xs font-semibold text-gray-300 block mb-1.5 flex items-center gap-1.5">

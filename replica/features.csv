@@ -1,0 +1,17 @@
+feature,area,priority,original,clone,notes
+Quick Join Google Meet with link,bot,must,yes,yes,Playwright join headless
+Audio capture from meeting,audio,must,yes,yes,Virtual audio loopback / tab audio stream
+Live Indonesian & English Speech-to-Text,stt,must,yes,yes,Gemini API audio streaming or Faster-Whisper
+Speaker Diarization (siapa yang bicara),stt,must,yes,yes,Label speaker berdasarkan deteksi audio
+Meeting Summary Generation,ai,must,yes,yes,Executive summary & bullet points
+Action Items & Task Extraction,ai,must,yes,yes,Deteksi PIC dan deadline tugas
+Offline Audio Upload (MP3/WAV/M4A),audio,must,yes,yes,Upload file rekaman lokal
+Dashboard list meeting lampau,dashboard,must,yes,yes,Riwayat rapat tersimpan
+Interactive Audio-Transcript Player,ui,should,yes,yes,Klik teks langsung putar audio di detik terkait
+Export to Markdown / TXT,export,should,yes,yes,Download transkrip dan notulensi
+Export to Google Docs,export,should,yes,yes,Direct export via Google API
+Edit Speaker Name & Text,ui,should,yes,yes,Koreksi manual jika AI salah tangkap nama
+Calendar Auto-Sync,integrations,could,yes,no,Otomatis join saat ada jadwal di Google Calendar
+Multi-language translation,ai,could,yes,yes,Terjemahkan hasil notula ke bahasa lain
+Coin based paywall system,billing,skip,yes,skip,Ganti dengan BYOK (Gemini API Key) bebas limit
+Proprietary mobile apps,platform,skip,yes,skip,Fokus web app responsive dulu

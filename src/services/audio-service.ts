@@ -14,17 +14,17 @@ export const AudioService = {
     const ext = path.extname(filePath).toLowerCase();
     switch (ext) {
       case ".mp3":
-        return "audio/mp3";
+        return "audio/mpeg";
       case ".wav":
         return "audio/wav";
       case ".m4a":
-        return "audio/m4a";
+        return "audio/mp4";
       case ".ogg":
         return "audio/ogg";
       case ".webm":
         return "audio/webm";
       default:
-        return "audio/mp3";
+        return "audio/mpeg";
     }
   },
 

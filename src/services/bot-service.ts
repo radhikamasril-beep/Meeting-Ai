@@ -6,6 +6,7 @@ import { getValidatedConfig } from "../lib/config";
 export interface BotSession {
   meetingId: string;
   meetingUrl: string;
+  browser: any | null;
   context: BrowserContext | null;
   page: Page | null;
   status: "idle" | "joining" | "in-meeting" | "leaving" | "ended" | "error";
@@ -41,7 +42,8 @@ export const PlaywrightBotService = {
     const displayName = botName || config.BOT_DISPLAY_NAME;
     session.status = "joining";
 
-    const { context } = await this.launchBrowser(config.HEADLESS_BOT);
+    const { browser, context } = await this.launchBrowser(config.HEADLESS_BOT);
+    session.browser = browser;
     session.context = context;
     const page = await context.newPage();
     session.page = page;
@@ -174,6 +176,9 @@ export const PlaywrightBotService = {
       }
       if (session.context) {
         await session.context.close().catch(() => {});
+      }
+      if (session.browser) {
+        await session.browser.close().catch(() => {});
       }
     } catch (err) {
       console.warn("[Bot] Cleanup warning:", err);

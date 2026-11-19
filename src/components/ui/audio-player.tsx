@@ -74,6 +74,7 @@ export function AudioPlayer({ src, currentTime = 0, onTimeUpdate, className }: A
             type="button"
             size="icon"
             variant="primary"
+            aria-label={isPlaying ? "Jeda audio" : "Putar audio"}
             onClick={togglePlay}
             className="h-10 w-10 rounded-full"
           >
@@ -84,8 +85,11 @@ export function AudioPlayer({ src, currentTime = 0, onTimeUpdate, className }: A
             type="button"
             size="icon"
             variant="ghost"
+            aria-label="Ulang audio dari awal"
             onClick={() => {
               if (audioRef.current) audioRef.current.currentTime = 0;
+              setCurrTime(0);
+              onTimeUpdate?.(0);
             }}
             className="h-9 w-9 text-gray-400"
           >
@@ -102,6 +106,7 @@ export function AudioPlayer({ src, currentTime = 0, onTimeUpdate, className }: A
             max={duration || 100}
             value={currTime}
             onChange={handleSeek}
+            aria-label="Navigasi waktu audio rapat"
             className="h-1.5 flex-1 cursor-pointer appearance-none rounded-lg bg-gray-700 accent-indigo-500"
           />
           <span className="font-mono text-xs text-gray-500">{formatDuration(duration)}</span>
@@ -112,6 +117,7 @@ export function AudioPlayer({ src, currentTime = 0, onTimeUpdate, className }: A
           type="button"
           size="icon"
           variant="ghost"
+          aria-label={isMuted ? "Bunyikan suara" : "Bisukan suara"}
           onClick={() => {
             if (audioRef.current) {
               audioRef.current.muted = !isMuted;

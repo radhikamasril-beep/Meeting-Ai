@@ -15,6 +15,7 @@ class BotManagerService {
     const session: BotSession = {
       meetingId,
       meetingUrl,
+      browser: null,
       context: null,
       page: null,
       status: "idle",

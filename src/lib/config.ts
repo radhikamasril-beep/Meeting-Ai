@@ -21,7 +21,7 @@ export function getValidatedConfig(): EnvConfig {
       PORT: 3000,
       NODE_ENV: "development",
       GEMINI_API_KEY: process.env.GEMINI_API_KEY || "",
-      GEMINI_MODEL: "gemini-2.5-flash",
+      GEMINI_MODEL: "gemini-3.8-flash",
       DATABASE_URL: "file:./data/db/meetingai.sqlite",
       STORAGE_RECORDINGS_PATH: "./data/recordings",
       BOT_DISPLAY_NAME: "AI Meeting Note Taker",

@@ -220,6 +220,7 @@ export default function MeetingDetailPage() {
       {/* Audio Player */}
       {meeting.audio_path && (
         <AudioPlayer
+          src={`/api/meetings/${meeting.id}/audio`}
           currentTime={currentAudioTime}
           onTimeUpdate={(t) => setCurrentAudioTime(t)}
         />

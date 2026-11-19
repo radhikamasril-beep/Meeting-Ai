@@ -14,6 +14,7 @@ const db = new DatabaseSync(DB_PATH);
 // Initialize Tables (Langkah 10-13)
 db.exec(`
   PRAGMA journal_mode = WAL;
+  PRAGMA foreign_keys = ON;
 
   CREATE TABLE IF NOT EXISTS meetings (
     id TEXT PRIMARY KEY,
@@ -113,18 +114,27 @@ export const MeetingRepository = {
 
     let summary: Summary | null = null;
     if (summaryRow) {
+      let keyPoints: string[] = [];
+      let actionItems: any[] = [];
       try {
-        summary = {
-          id: summaryRow.id,
-          meeting_id: summaryRow.meeting_id,
-          overview: summaryRow.overview,
-          key_points: JSON.parse(summaryRow.key_points),
-          action_items: JSON.parse(summaryRow.action_items),
-          created_at: summaryRow.created_at,
-        };
+        keyPoints = JSON.parse(summaryRow.key_points);
       } catch {
-        summary = null;
+        keyPoints = [];
       }
+      try {
+        actionItems = JSON.parse(summaryRow.action_items);
+      } catch {
+        actionItems = [];
+      }
+
+      summary = {
+        id: summaryRow.id,
+        meeting_id: summaryRow.meeting_id,
+        overview: summaryRow.overview,
+        key_points: keyPoints,
+        action_items: actionItems,
+        created_at: summaryRow.created_at,
+      };
     }
 
     return {

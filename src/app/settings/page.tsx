@@ -137,6 +137,8 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+
+          {aiProvider === "9router" && (
             <div className="space-y-4 pt-2">
               <div>
                 <label className="text-xs font-semibold text-gray-300 block mb-1.5 flex items-center gap-1.5">

@@ -186,7 +186,7 @@ export default function MeetingDetailPage() {
             <p className="text-xs text-gray-400 mt-1 flex items-center gap-3">
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
-                {new Date(meeting.created_at).toLocaleDateString("id-ID", {
+                {new Date(meeting.created_at).toLocaleString("id-ID", {
                   dateStyle: "medium",
                   timeStyle: "short",
                 })}

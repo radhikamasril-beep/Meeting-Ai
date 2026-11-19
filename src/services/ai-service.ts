@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
-import { getValidatedConfig } from "@/lib/config";
+import { getValidatedConfig } from "../lib/config";
 import { AudioService } from "./audio-service";
-import { ActionItem } from "@/types/meeting";
+import { ActionItem } from "../types/meeting";
 
 export interface AIProcessedMeeting {
   transcripts: Array<{

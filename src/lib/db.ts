@@ -1,7 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import fs from "node:fs";
-import { Meeting, TranscriptSegment, Summary, MeetingWithDetails } from "@/types/meeting";
+import { Meeting, TranscriptSegment, Summary, MeetingWithDetails } from "../types/meeting";
 
 const DB_DIR = path.resolve(process.cwd(), "data", "db");
 if (!fs.existsSync(DB_DIR)) {

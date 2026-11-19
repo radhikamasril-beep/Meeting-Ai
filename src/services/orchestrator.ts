@@ -1,7 +1,7 @@
 import { AudioService } from "./audio-service";
 import { AIService } from "./ai-service";
-import { MeetingRepository } from "@/lib/db";
-import { MeetingWithDetails } from "@/types/meeting";
+import { MeetingRepository } from "../lib/db";
+import { MeetingWithDetails } from "../types/meeting";
 
 export const MeetingOrchestrator = {
   // Process an audio file for a given meeting ID

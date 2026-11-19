@@ -2,7 +2,21 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Clock, Calendar, CheckSquare, FileText, ArrowLeft, RefreshCw, StopCircle } from "lucide-react";
+import {
+  Clock,
+  Calendar,
+  CheckSquare,
+  FileText,
+  ArrowLeft,
+  RefreshCw,
+  StopCircle,
+  Download,
+  Copy,
+  Check,
+  Edit2,
+  Save,
+  Share2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge, Card } from "@/components/ui/card";
 import { AudioPlayer } from "@/components/ui/audio-player";
@@ -16,6 +30,13 @@ export default function MeetingDetailPage() {
   const [activeTab, setActiveTab] = useState<"summary" | "transcript" | "actions">("summary");
   const [currentAudioTime, setCurrentAudioTime] = useState(0);
   const [isStoppingBot, setIsStoppingBot] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // In-place edit state for transcripts
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editSpeaker, setEditSpeaker] = useState("");
+  const [editText, setEditText] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const fetchMeeting = async () => {
     try {
@@ -53,6 +74,50 @@ export default function MeetingDetailPage() {
       console.error(err);
     } finally {
       setIsStoppingBot(false);
+    }
+  };
+
+  const handleCopySummary = () => {
+    if (!meeting || !meeting.summary) return;
+    let text = `*Notulensi Rapat: ${meeting.title}*\n\n`;
+    text += `*Ringkasan:*\n${meeting.summary.overview}\n\n`;
+    if (meeting.summary.action_items?.length) {
+      text += `*Action Items:*\n`;
+      meeting.summary.action_items.forEach((item, i) => {
+        text += `${i + 1}. ${item.task} (PIC: ${item.assignee || "-"} | Deadline: ${item.deadline || "-"})\n`;
+      });
+    }
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const startEdit = (t: any) => {
+    setEditingId(t.id);
+    setEditSpeaker(t.speaker_name);
+    setEditText(t.text);
+  };
+
+  const saveEdit = async (transcriptId: string) => {
+    setIsSavingEdit(true);
+    try {
+      const res = await fetch(`/api/meetings/${params.id}/transcripts`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transcriptId,
+          speaker_name: editSpeaker,
+          text: editText,
+        }),
+      });
+      if (res.ok) {
+        setEditingId(null);
+        fetchMeeting();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -108,8 +173,8 @@ export default function MeetingDetailPage() {
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-3">
+        {/* Action Controls & Export Buttons */}
+        <div className="flex flex-wrap items-center gap-2.5">
           {meeting.status === "recording" && (
             <Button
               variant="danger"
@@ -118,8 +183,36 @@ export default function MeetingDetailPage() {
               className="gap-2"
             >
               <StopCircle className="h-4 w-4" />
-              Selesaikan Rapat & Buat Notula
+              Selesaikan Rapat
             </Button>
+          )}
+
+          {meeting.status === "completed" && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCopySummary}
+                className="gap-1.5"
+              >
+                {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                {copied ? "Tersalin!" : "Salin ke WA/Slack"}
+              </Button>
+
+              <a href={`/api/meetings/${meeting.id}/export?format=markdown`} download>
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <Download className="h-4 w-4" />
+                  Unduh .MD
+                </Button>
+              </a>
+
+              <a href={`/api/meetings/${meeting.id}/export?format=txt`} download>
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <FileText className="h-4 w-4" />
+                  Unduh .TXT
+                </Button>
+              </a>
+            </>
           )}
         </div>
       </div>
@@ -154,7 +247,7 @@ export default function MeetingDetailPage() {
           }`}
         >
           <Clock className="h-4 w-4" />
-          Transkrip ({meeting.transcripts.length})
+          Transkrip & Edit ({meeting.transcripts.length})
         </button>
         <button
           onClick={() => setActiveTab("actions")}
@@ -206,16 +299,75 @@ export default function MeetingDetailPage() {
           {meeting.transcripts.map((t) => (
             <div
               key={t.id}
-              onClick={() => setCurrentAudioTime(t.start_ms / 1000)}
-              className="group p-4 rounded-xl border border-gray-800/80 bg-gray-950/40 hover:bg-gray-900/60 hover:border-indigo-500/40 transition-all cursor-pointer"
+              className="group p-4 rounded-xl border border-gray-800/80 bg-gray-950/40 hover:bg-gray-900/60 hover:border-indigo-500/40 transition-all"
             >
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-bold text-indigo-400">{t.speaker_name}</span>
-                <span className="font-mono text-[11px] text-gray-500 group-hover:text-indigo-400">
-                  {formatTimestamp(t.start_ms)}
-                </span>
-              </div>
-              <p className="text-sm text-gray-200 leading-relaxed">{t.text}</p>
+              {editingId === t.id ? (
+                /* In-place Edit Form */
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="text"
+                      value={editSpeaker}
+                      onChange={(e) => setEditSpeaker(e.target.value)}
+                      placeholder="Nama Pembicara"
+                      className="rounded-lg border border-gray-700 bg-gray-900 px-3 py-1 text-xs text-indigo-300 font-bold focus:border-indigo-500 focus:outline-none"
+                    />
+                    <span className="font-mono text-xs text-gray-500">
+                      {formatTimestamp(t.start_ms)}
+                    </span>
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2.5 text-sm text-gray-200 focus:border-indigo-500 focus:outline-none"
+                  />
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setEditingId(null)}
+                    >
+                      Batal
+                    </Button>
+                    <Button
+                      size="sm"
+                      isLoading={isSavingEdit}
+                      onClick={() => saveEdit(t.id)}
+                      className="gap-1.5"
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      Simpan
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                /* Display Mode */
+                <div
+                  onClick={() => setCurrentAudioTime(t.start_ms / 1000)}
+                  className="cursor-pointer"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-indigo-400">{t.speaker_name}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-[11px] text-gray-500 group-hover:text-indigo-400">
+                        {formatTimestamp(t.start_ms)}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startEdit(t);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-indigo-400 text-gray-500 transition-opacity"
+                        title="Koreksi transkrip / pembicara"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-200 leading-relaxed">{t.text}</p>
+                </div>
+              )}
             </div>
           ))}
 
@@ -237,7 +389,7 @@ export default function MeetingDetailPage() {
               >
                 <input
                   type="checkbox"
-                  className="mt-1 h-4 w-4 rounded border-gray-700 bg-gray-800 text-indigo-500 focus:ring-0"
+                  className="mt-1 h-4 w-4 rounded border-gray-700 bg-gray-800 text-indigo-500 focus:ring-0 cursor-pointer"
                 />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-200">{item.task}</p>
